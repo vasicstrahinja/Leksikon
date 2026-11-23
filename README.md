@@ -69,6 +69,8 @@ Kolone su `pitanje;tip;opcije`. Može i zarez umesto tačka-zareza.
 | `izbor` | ponuđeni odgovori, opcije odvojene sa `\|` |
 | `slika` | ljudi dodaju svoju sliku |
 
+Kod tipova `kratko` i `dugo` treća kolona je unapred popunjen tekst, a `|` znači novi red. Na primer, `Lepa bleja veza;dugo;Lepa -|Bleja -|Veza -` daje tri reda koja ljudi dopune. Ako ne promene ništa, odgovor se ne čuva.
+
 ## Slike
 
 Slike se čuvaju besplatno na tvom Google Drive-u, u folderu **Leksikon slike**, a u tabeli se prikazuju direktno u ćeliji. Stranica ih pre slanja smanji na najviše 1200 piksela, pa jedna slika ima oko 100–300 KB. Kad neko promeni sliku, stara ide u kantu za smeće na Drive-u.

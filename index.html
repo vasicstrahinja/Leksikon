@@ -153,7 +153,8 @@ function parseCsv(text){
     let tip=(r[1]||'kratko').trim().toLowerCase();if(!['kratko','dugo','broj','datum','izbor','slika'].includes(tip))tip='kratko';
     const opcije=(r[2]||'').split('|').map(s=>s.trim()).filter(Boolean);
     if(tip=='izbor'&&!opcije.length)tip='kratko';
-    out.push({p,tip,opcije})});
+    const pre=tip=='izbor'||tip=='slika'?'':opcije.map(x=>x+' ').join('\n');
+    out.push({p,tip,opcije,pre})});
   return out;
 }
 
@@ -178,7 +179,8 @@ $('lockForm').addEventListener('submit',e=>{e.preventDefault();tryUnlock($('pass
 const picUrl=v=>/^https:\/\/lh3\.googleusercontent\.com\/d\/[\w-]+$/.test(v)?v:'';
 function myField(q,v,cls){
   if(q.tip=='slika'){const u=picUrl(v);return `<div class="picbox">${u?`<img class="pic" src="${esc(u)}" alt="Tvoja slika">`:''}<label class="filebtn">${u?'Promeni sliku':'Izaberi sliku'}<input type="file" id="ansFile" accept="image/*"></label></div>`}
-  if(q.tip=='dugo')return `<textarea id="ansIn" class="${cls}" rows="2" aria-label="Tvoj odgovor">${esc(v)}</textarea>`;
+  if(q.tip=='dugo'){const t=v||q.pre||'';return `<textarea id="ansIn" class="${cls}" rows="${Math.max(2,t.split('\n').length)}" aria-label="Tvoj odgovor">${esc(t)}</textarea>`}
+  if(!v&&q.pre)v=q.pre.trim();
   if(q.tip=='izbor')return `<select id="ansIn" class="${cls}" aria-label="Tvoj odgovor"><option value="">izaberi…</option>${q.opcije.map(o=>`<option ${o==v?'selected':''}>${esc(o)}</option>`).join('')}</select>`;
   return `<input id="ansIn" class="${cls}" type="${q.tip=='broj'?'number':q.tip=='datum'?'date':'text'}" value="${esc(v)}" aria-label="Tvoj odgovor" placeholder="tvoj odgovor…" autocomplete="off">`;
 }
@@ -208,7 +210,7 @@ function renderList(focus){
 let queue=[],flushing=false;
 function saveCurrent(){
   const f=$('ansIn');if(!f)return true;
-  const q=questions[idx],o=f.value.trim(),old=val(mine<0?null:entries[mine],q);
+  const q=questions[idx],o0=f.value.trim(),o=(q.pre&&o0===q.pre.trim())?'':o0,old=val(mine<0?null:entries[mine],q);
   if(o===old)return true;
   if(mine<0){if(!o)return true;entries.push({});mine=entries.length-1}
   entries[mine]={...entries[mine],[q.p]:o};
