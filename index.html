@@ -1,0 +1,274 @@
+<!DOCTYPE html>
+<html lang="bs">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Moj leksikon</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Baloo+2:wght@500;700;800&family=Caveat:wght@500;700&family=Nunito:wght@400;600;700&display=swap" rel="stylesheet">
+<style>
+/* VOICE: razigrano, toplo, kao spomenar iz osnovne škole
+   IDEA: tvrdo ukoričeni leksikon — korice od maline, linirane stranice s crvenom marginom
+   PICTURE: otvorena stranica bilježnice sa spiralom i trakom; forma i odgovori žive na njoj
+   COLOUR and TYPE: malina #c2185b korice, papir bijeli s plavim linijama, žuta traka #ffd23f; Baloo 2 + Caveat za rukopis + Nunito
+   LAYOUT: jedna kolona, stranica 760px, tabovi iznad; na mobitelu puna širina */
+:root{color-scheme:light dark;
+ --cover:light-dark(#c2185b,#5a0f33);--cover2:light-dark(#a3124b,#430a26);
+ --paper:light-dark(#fffefb,#1f1c24);--line:light-dark(#cfe0f5,#2f3446);--margin:light-dark(#f2a3a3,#7a3446);
+ --ink:light-dark(#1c2340,#ece9f2);--soft:light-dark(#5b6280,#a9a6b8);--hand:light-dark(#1a3fa0,#9ec1ff);
+ --tape:light-dark(#ffd23f,#d9ad1e);--accent:light-dark(#c2185b,#ff6fa5);--field:light-dark(#fff,#272330)}
+:root[data-theme=light]{color-scheme:light}:root[data-theme=dark]{color-scheme:dark}
+*{box-sizing:border-box;min-width:0}
+body{margin:0;min-height:100vh;color:var(--ink);font:16px/1.55 Nunito,system-ui,sans-serif;overflow-x:clip;
+ background:var(--cover) radial-gradient(circle at 20% 10%,rgba(255,255,255,.12) 0 2px,transparent 3px) 0 0/26px 26px}
+.wrap{max-width:780px;margin:0 auto;padding:clamp(20px,4vw,48px) max(3vw,12px) 64px}
+header{color:#fff;text-align:center;margin-bottom:22px}
+h1{font:800 clamp(34px,7vw,52px)/1.05 "Baloo 2",sans-serif;margin:0;text-wrap:balance;text-shadow:0 3px 0 var(--cover2)}
+header p{margin:6px 0 0;opacity:.9}
+.tabs{display:flex;gap:8px;justify-content:center;flex-wrap:wrap;margin-bottom:-6px;position:relative;z-index:1}
+.tabs button{font:700 16px "Baloo 2",sans-serif;border:0;border-radius:12px 12px 0 0;padding:10px 18px 14px;min-height:44px;
+ background:var(--cover2);color:#fff;cursor:pointer;opacity:.85}
+.tabs button[aria-selected=true]{background:var(--paper);color:var(--accent);opacity:1}
+.page{position:relative;background:var(--paper);border-radius:6px 14px 14px 6px;box-shadow:0 18px 40px rgba(0,0,0,.28),0 2px 0 rgba(0,0,0,.08);
+ padding:44px clamp(18px,4vw,40px) 40px clamp(56px,9vw,84px);
+ background-image:linear-gradient(90deg,transparent calc(clamp(44px,7.5vw,70px)),var(--margin) calc(clamp(44px,7.5vw,70px)) calc(clamp(44px,7.5vw,70px) + 2px),transparent 0),
+ repeating-linear-gradient(var(--paper) 0 31px,var(--line) 31px 32px)}
+.page::before{content:"";position:absolute;left:10px;top:24px;bottom:24px;width:22px;
+ background:radial-gradient(circle at 11px 11px,var(--cover2) 0 6px,transparent 7px) 0 0/22px 34px}
+.tape{position:absolute;top:-14px;right:28px;width:120px;height:30px;background:var(--tape);opacity:.9;transform:rotate(4deg);box-shadow:0 2px 4px rgba(0,0,0,.15)}
+h2{font:700 30px/1.1 "Baloo 2",sans-serif;margin:0 0 4px;color:var(--accent)}
+.sub{color:var(--soft);margin:0 0 22px}
+.q{margin:0 0 20px}
+.q label{display:block;font-weight:700;margin-bottom:4px}
+.q .req{color:var(--accent)}
+input,textarea,select{width:100%;font:500 22px/1.3 Caveat,cursive;color:var(--hand);background:var(--field);
+ border:2px solid var(--line);border-radius:10px;padding:8px 12px;min-height:44px}
+textarea{min-height:110px;resize:vertical}
+input:focus,textarea:focus,select:focus,button:focus-visible{outline:3px solid var(--tape);outline-offset:2px}
+.chips{display:flex;flex-wrap:wrap;gap:8px}
+.chips label{font:600 15px Nunito;display:inline-flex;align-items:center;gap:6px;padding:8px 14px;min-height:44px;border:2px solid var(--line);border-radius:999px;background:var(--field);cursor:pointer;margin:0}
+.chips input{width:auto;min-height:0;accent-color:var(--accent)}
+.chips label:has(input:checked){border-color:var(--accent);color:var(--accent)}
+.btn{font:700 17px "Baloo 2",sans-serif;border:0;border-radius:12px;padding:10px 22px;min-height:46px;background:var(--accent);color:#fff;cursor:pointer;box-shadow:0 3px 0 var(--cover2)}
+.btn.ghost{background:transparent;color:var(--accent);box-shadow:inset 0 0 0 2px var(--accent)}
+.btn:disabled{opacity:.5;cursor:default}
+.row{display:flex;gap:10px;flex-wrap:wrap;align-items:center}
+.msg{min-height:24px;margin-top:12px;font-weight:700}
+.msg.ok{color:#2e8b57}.msg.err{color:#d23a3a}
+.lock{text-align:center;padding:20px 0}
+.lock svg{width:110px;height:110px;margin:0 auto 10px;display:block}
+.lock .row{justify-content:center;margin-top:14px}
+.lock input{max-width:260px;text-align:center;font-size:28px;letter-spacing:2px}
+.entry .who{font:700 clamp(34px,7vw,46px)/1.05 Caveat,cursive;color:var(--hand);margin:0 0 14px}
+.entry dl{margin:0}
+.entry dt{font-weight:700;font-size:14px;color:var(--soft);margin-top:8px}
+.entry dd{margin:0 0 4px;font:500 24px/1.3 Caveat,cursive;color:var(--hand);white-space:pre-wrap;overflow-wrap:anywhere}
+.pager{display:flex;justify-content:space-between;align-items:center;gap:10px;margin-top:24px}
+.pager span{color:var(--soft);font-weight:700}
+.empty{text-align:center;color:var(--soft);padding:30px 0}
+.toc{display:flex;flex-wrap:wrap;gap:8px;margin-bottom:20px}
+.toc button{font:600 14px Nunito;border:2px solid var(--line);background:var(--field);color:var(--ink);border-radius:999px;padding:6px 12px;min-height:40px;cursor:pointer}
+.toc button[aria-current=true]{border-color:var(--accent);color:var(--accent)}
+fieldset{border:2px dashed var(--line);border-radius:12px;padding:16px;margin:0 0 20px}
+legend{font:700 18px "Baloo 2";color:var(--accent);padding:0 6px}
+pre{background:var(--field);border:2px solid var(--line);border-radius:10px;padding:10px;font-size:13px;overflow-x:auto;white-space:pre}
+.small{font-size:14px;color:var(--soft)}
+.del{font:600 13px Nunito;background:none;border:0;color:#d23a3a;cursor:pointer;text-decoration:underline;min-height:40px}
+[hidden]{display:none!important}
+@media(prefers-reduced-motion:no-preference){.page{animation:in .35s ease-out}@keyframes in{from{transform:translateY(10px) rotate(-.6deg);opacity:0}}}
+@media(max-width:600px){.page::before{left:4px}.tape{width:80px;right:14px}}
+</style>
+</head>
+<body>
+<div class="wrap">
+ <header>
+  <h1>Moj leksikon</h1>
+  <p>Upiši se i ostavi trag na jednoj stranici.</p>
+ </header>
+
+ <nav class="tabs" role="tablist" id="tabs" hidden>
+  <button role="tab" data-v="popuni" aria-selected="true">Upiši se</button>
+  <button role="tab" data-v="listaj" aria-selected="false">Listaj leksikon</button>
+  <button role="tab" data-v="postavke" aria-selected="false" id="tabPost" hidden>Postavke</button>
+ </nav>
+
+ <main class="page" id="page">
+  <div class="tape"></div>
+
+  <section id="vLock" class="lock">
+   <svg viewBox="0 0 120 120" aria-hidden="true"><rect x="22" y="52" width="76" height="58" rx="12" fill="var(--tape)"/><rect x="22" y="52" width="76" height="14" rx="6" fill="rgba(255,255,255,.35)"/><path d="M38 54V40a22 22 0 0 1 44 0v14" fill="none" stroke="var(--accent)" stroke-width="10" stroke-linecap="round"/><circle cx="60" cy="78" r="8" fill="var(--cover2)"/><rect x="56" y="80" width="8" height="16" rx="3" fill="var(--cover2)"/></svg>
+   <h2>Leksikon je zaključan</h2>
+   <p class="sub">Unesi šifru koju si dobio/la da otvoriš stranice.</p>
+   <form id="lockForm">
+    <input id="pass" type="password" autocomplete="off" aria-label="Šifra" placeholder="šifra">
+    <div class="row"><button class="btn" type="submit">Otključaj</button></div>
+   </form>
+   <div class="msg" id="lockMsg"></div>
+  </section>
+
+  <section id="vPopuni" hidden>
+   <h2>Upiši se</h2>
+   <p class="sub" id="formSub">Odgovori na pitanja. Možeš se kasnije vratiti i izmijeniti svoje odgovore.</p>
+   <form id="form"></form>
+  </section>
+
+  <section id="vListaj" hidden>
+   <h2>Stranice leksikona</h2>
+   <p class="sub" id="listSub"></p>
+   <div class="toc" id="toc"></div>
+   <article class="entry" id="entry"></article>
+   <div class="pager" id="pager"></div>
+  </section>
+
+  <section id="vPostavke" hidden>
+   <h2>Postavke</h2>
+   <p class="sub">Ovo vidiš samo ti kao vlasnik leksikona.</p>
+   <fieldset>
+    <legend>Šifra</legend>
+    <p class="small" id="passInfo"></p>
+    <div class="row"><input id="newPass" type="text" placeholder="nova šifra" style="flex:1 1 200px"><button class="btn" id="savePass" type="button">Spremi šifru</button></div>
+   </fieldset>
+   <fieldset>
+    <legend>Pitanja iz CSV-a</legend>
+    <p class="small" id="csvInfo"></p>
+    <div class="row"><input type="file" id="csvFile" accept=".csv,text/csv,text/plain" style="flex:1 1 220px;font:15px Nunito"><button class="btn ghost" id="resetCsv" type="button">Vrati zadana pitanja</button></div>
+    <p class="small">Format: kolone <b>pitanje;tip;opcije</b> (zarez ili tačka-zarez). Tipovi: <b>kratko</b>, <b>dugo</b>, <b>broj</b>, <b>datum</b>, <b>izbor</b> (opcije odvojene sa |). Pitanje sa * na kraju je obavezno.</p>
+    <pre id="csvPrev"></pre>
+    <button class="btn ghost" id="copyCsv" type="button">Kopiraj trenutni CSV</button>
+   </fieldset>
+   <div class="msg" id="postMsg"></div>
+  </section>
+ </main>
+ <p class="small" style="color:#fff;opacity:.8;text-align:center;margin-top:18px" id="foot"></p>
+</div>
+
+<script>
+{
+const DEFAULT_PASS='leksikon';
+const $=id=>document.getElementById(id);
+const esc=s=>String(s??'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
+let defHash='',db=null,user=null,uid=null,isOwner=false,canWrite=true;
+let defaultCsv='',csvText='',questions=[],entries=[],settings={},myEntry=null,idx=0,unlocked=false,view='popuni';
+
+async function sha(t){const b=await crypto.subtle.digest('SHA-256',new TextEncoder().encode(t.trim()));return [...new Uint8Array(b)].map(x=>x.toString(16).padStart(2,'0')).join('')}
+
+function parseCsv(text){
+  text=text.replace(/^﻿/,'');
+  const first=text.split(/\r?\n/)[0]||'';
+  const d=(first.split(';').length>=first.split(',').length)?';':',';
+  const rows=[];let row=[],f='',q=false;
+  for(let i=0;i<text.length;i++){const c=text[i];
+    if(q){if(c=='"'){if(text[i+1]=='"'){f+='"';i++}else q=false}else f+=c}
+    else if(c=='"')q=true;else if(c==d){row.push(f);f=''}
+    else if(c=='\n'||c=='\r'){if(c=='\r'&&text[i+1]=='\n')i++;row.push(f);rows.push(row);row=[];f=''}
+    else f+=c}
+  if(f||row.length){row.push(f);rows.push(row)}
+  const out=[];
+  rows.forEach((r,i)=>{let p=(r[0]||'').trim();if(!p)return;
+    if(i==0&&/^(pitanje|question)$/i.test(p))return;
+    let tip=(r[1]||'kratko').trim().toLowerCase();if(!['kratko','dugo','broj','datum','izbor'].includes(tip))tip='kratko';
+    const req=p.endsWith('*');if(req)p=p.slice(0,-1).trim();
+    const opcije=(r[2]||'').split('|').map(s=>s.trim()).filter(Boolean);
+    if(tip=='izbor'&&!opcije.length)tip='kratko';
+    out.push({p,tip,opcije,req})});
+  return out;
+}
+
+function setView(v){view=v;
+  for(const b of document.querySelectorAll('.tabs button'))b.setAttribute('aria-selected',b.dataset.v==v);
+  $('vPopuni').hidden=v!='popuni';$('vListaj').hidden=v!='listaj';$('vPostavke').hidden=v!='postavke';
+  if(v=='listaj')renderList();if(v=='postavke')renderPost();}
+$('tabs').addEventListener('click',e=>{const b=e.target.closest('button');if(b)setView(b.dataset.v)});
+
+function unlock(){unlocked=true;$('vLock').hidden=true;$('tabs').hidden=false;renderForm();setView(view)}
+
+$('lockForm').addEventListener('submit',async e=>{e.preventDefault();
+  const h=await sha($('pass').value);const want=settings.hash||defHash;
+  if(h===want){try{sessionStorage.setItem('lx',h)}catch(_){};unlock()}
+  else{$('lockMsg').className='msg err';$('lockMsg').textContent='Pogrešna šifra, pokušaj ponovo.'}});
+
+function renderForm(){
+  if(!questions.length){$('form').innerHTML='<p class="empty">Pitanja se učitavaju…</p>';return}
+  const prev={};(myEntry?.odgovori||[]).forEach(a=>prev[a.p]=a.o);
+  $('form').innerHTML=questions.map((q,i)=>{const id='q'+i,v=prev[q.p]??'',lab=`${esc(q.p)}${q.req?' <span class="req">*</span>':''}`;
+    let inp;
+    if(q.tip=='dugo')inp=`<textarea id="${id}" ${q.req?'required':''}>${esc(v)}</textarea>`;
+    else if(q.tip=='izbor')return `<div class="q" role="group" aria-labelledby="${id}l"><label id="${id}l">${lab}</label><div class="chips">${q.opcije.map(o=>`<label><input type="radio" name="${id}" value="${esc(o)}" ${o==v?'checked':''} ${q.req?'required':''}>${esc(o)}</label>`).join('')}</div></div>`;
+    else inp=`<input id="${id}" type="${q.tip=='broj'?'number':q.tip=='datum'?'date':'text'}" value="${esc(v)}" ${q.req?'required':''}>`;
+    return `<div class="q"><label for="${id}">${lab}</label>${inp}</div>`}).join('')+
+   `<div class="row"><button class="btn" type="submit" id="saveBtn">${myEntry?'Spremi izmjene':'Upiši se u leksikon'}</button>${myEntry?'<button class="del" type="button" id="delMine">Obriši moj upis</button>':''}</div><div class="msg" id="formMsg"></div>`;
+  if(!db||!uid){$('formSub').textContent='Za upis moraš biti prijavljen/a na Claude i imati pristup ovoj stranici.';$('saveBtn').disabled=true}
+  else if(!canWrite){$('formSub').textContent='Možeš čitati leksikon, ali vlasnik ti još nije dao dozvolu za upis.';$('saveBtn').disabled=true}
+}
+
+$('form').addEventListener('submit',async e=>{e.preventDefault();const m=$('formMsg'),btn=$('saveBtn');
+  const odgovori=questions.map((q,i)=>{let o;if(q.tip=='izbor')o=(document.querySelector(`input[name=q${i}]:checked`)||{}).value||'';else o=$('q'+i).value.trim();return {p:q.p,o}});
+  btn.disabled=true;m.className='msg';m.textContent='Spremam…';
+  try{await db.doc('upisi/'+uid).set({uid,odgovori,vrijeme:new Date().toISOString(),prvo:myEntry?.prvo||new Date().toISOString()});
+    m.className='msg ok';m.textContent='Spremljeno! Hvala što si se upisao/la.';}
+  catch(err){m.className='msg err';
+    if(err?.code=='invalid_argument'){canWrite=false;m.textContent='Nemaš dozvolu za upis. Zamoli vlasnika da te doda kao saradnika (Contributor).'}
+    else if(err?.code=='quota_exceeded')m.textContent='Leksikon je pun, ne može primiti nove upise.';
+    else m.textContent='Nije uspjelo spremanje, pokušaj ponovo.'}
+  btn.disabled=!canWrite});
+
+$('form').addEventListener('click',async e=>{if(e.target.id!='delMine')return;
+  if(e.target.dataset.sure!='1'){e.target.dataset.sure='1';e.target.textContent='Klikni ponovo za potvrdu brisanja';return}
+  try{await db.doc('upisi/'+uid).delete();$('formMsg').className='msg ok';$('formMsg').textContent='Tvoj upis je obrisan.'}catch(_){$('formMsg').className='msg err';$('formMsg').textContent='Brisanje nije uspjelo.'}});
+
+function nameOf(en){const a=en.odgovori||[];return (a.find(x=>/ime/i.test(x.p)&&x.o)||a.find(x=>x.o)||{}).o||'Bez imena'}
+
+function renderList(){
+  const list=[...entries].sort((a,b)=>(a.prvo||'').localeCompare(b.prvo||''));
+  $('listSub').textContent=list.length?`${list.length} ${list.length%10==1&&list.length%100!=11?'upis':'upisa'} do sada.`:'';
+  if(!list.length){$('toc').innerHTML='';$('pager').innerHTML='';$('entry').innerHTML='<p class="empty">Još niko nije upisan. Budi prvi/a!</p>';return}
+  idx=Math.max(0,Math.min(idx,list.length-1));const en=list[idx];
+  $('toc').innerHTML=list.map((x,i)=>`<button type="button" data-i="${i}" aria-current="${i==idx}">${esc(nameOf(x))}</button>`).join('');
+  $('entry').innerHTML=`<p class="who">${esc(nameOf(en))}</p><dl>${(en.odgovori||[]).filter(a=>a.o).map(a=>`<dt>${esc(a.p)}</dt><dd>${esc(a.o)}</dd>`).join('')}</dl>`+
+    (isOwner?`<button class="del" type="button" data-del="${esc(en._id)}">Ukloni ovu stranicu</button>`:'');
+  $('pager').innerHTML=`<button class="btn ghost" type="button" data-step="-1" ${idx==0?'disabled':''}>← Nazad</button><span>${idx+1} / ${list.length}</span><button class="btn ghost" type="button" data-step="1" ${idx==list.length-1?'disabled':''}>Dalje →</button>`;
+}
+$('vListaj').addEventListener('click',async e=>{const t=e.target.closest('button');if(!t)return;
+  if(t.dataset.i){idx=+t.dataset.i;renderList()}
+  else if(t.dataset.step){idx+=+t.dataset.step;renderList()}
+  else if(t.dataset.del){if(t.dataset.sure!='1'){t.dataset.sure='1';t.textContent='Klikni ponovo za potvrdu';return}
+    try{await db.doc('upisi/'+t.dataset.del).delete()}catch(_){t.textContent='Brisanje nije uspjelo'}}});
+
+async function renderPost(){
+  $('passInfo').textContent=settings.hash?'Šifra je postavljena. Upiši novu da je promijeniš.':`Još koristiš zadanu šifru „${DEFAULT_PASS}“. Postavi svoju prije nego podijeliš leksikon.`;
+  $('csvInfo').textContent=`${questions.length} pitanja. Izvor: ${settings.csv?'tvoj učitani CSV':'zadani pitanja.csv'}.`;
+  $('csvPrev').textContent=csvText;}
+function postMsg(t,ok){$('postMsg').className='msg '+(ok?'ok':'err');$('postMsg').textContent=t}
+async function saveSettings(patch){const next={...settings,...patch};for(const k in next)if(next[k]==null)delete next[k];
+  await db.doc('config/postavke').set(next)}
+$('savePass').addEventListener('click',async()=>{const p=$('newPass').value.trim();if(p.length<3)return postMsg('Šifra treba imati bar 3 znaka.');
+  try{await saveSettings({hash:await sha(p)});$('newPass').value='';postMsg('Nova šifra je spremljena: '+p,true)}catch(_){postMsg('Spremanje šifre nije uspjelo.')}});
+$('csvFile').addEventListener('change',async e=>{const f=e.target.files[0];if(!f)return;const t=await f.text();const qs=parseCsv(t);
+  if(!qs.length)return postMsg('U fajlu nisam našao nijedno pitanje.');
+  try{await saveSettings({csv:t});postMsg(`Učitano ${qs.length} pitanja.`,true)}catch(_){postMsg('CSV je prevelik ili spremanje nije uspjelo.')}e.target.value=''});
+$('resetCsv').addEventListener('click',async()=>{try{await saveSettings({csv:null});postMsg('Vraćena su zadana pitanja.',true)}catch(_){postMsg('Nije uspjelo.')}});
+$('copyCsv').addEventListener('click',async e=>{try{await navigator.clipboard.writeText(csvText);e.target.textContent='Kopirano!'}catch(_){e.target.textContent='Kopiranje nije dozvoljeno'}});
+
+function applyQuestions(){csvText=settings.csv||defaultCsv;questions=parseCsv(csvText);if(unlocked){renderForm();if(view=='postavke')renderPost()}}
+
+async function init(){
+  defHash=await sha(DEFAULT_PASS);
+  try{defaultCsv=await (await fetch('pitanja.csv')).text()}catch(_){defaultCsv='pitanje;tip;opcije\nIme i prezime*;kratko;\nTvoja poruka za mene;dugo;'}
+  applyQuestions();
+  const timer=setTimeout(()=>{if(!db)$('foot').textContent='Spremanje nije dostupno u ovom prikazu — prijavi se na Claude da se upišeš.'},10000);
+  db=await claude.use('db');user=await claude.use('user');clearTimeout(timer);
+  if(user){isOwner=(await user.isOwner())??false;uid=await user.id();const cw=await user.can('data.write');if(cw===false&&!isOwner)canWrite=false}
+  if(isOwner)$('tabPost').hidden=false;
+  if(!db){$('foot').textContent='Leksikon radi samo za prijavljene korisnike Claude-a.';return}
+  const t2=setTimeout(()=>$('foot').textContent='Podaci se još učitavaju…',10000);
+  db.doc('config/postavke').onSnapshot(s=>{clearTimeout(t2);if(!s.metadata.fromCache)$('foot').textContent='';settings=s.exists?{...s.data()}:{};applyQuestions();
+    try{if(!unlocked&&(isOwner||sessionStorage.getItem('lx')===(settings.hash||defHash)))unlock()}catch(_){if(isOwner&&!unlocked)unlock()}},()=>{});
+  db.collection('upisi').onSnapshot(s=>{entries=s.docs.map(d=>({...d.data(),_id:d.id}));
+    myEntry=entries.find(x=>x._id===uid)||null;
+    if(unlocked){if(view=='listaj')renderList();if(view=='popuni'&&!document.activeElement?.closest('#form'))renderForm()}},()=>{});
+}
+init();
+}
+</script>
+</body>
+</html>
