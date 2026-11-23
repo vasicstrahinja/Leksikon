@@ -5,7 +5,7 @@
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>Moj leksikon</title>
 <link rel="preconnect" href="https://fonts.googleapis.com">
-<link href="https://fonts.googleapis.com/css2?family=Baloo+2:wght@500;700;800&family=Caveat:wght@500;700&family=Nunito:wght@400;600;700&display=swap" rel="stylesheet">
+<link href="https://fonts.googleapis.com/css2?family=Baloo+2:wght@500;700;800&family=Caveat:wght@500;700&family=Kalam:wght@400;700&family=Patrick+Hand&family=Nunito:wght@400;600;700&display=swap" rel="stylesheet">
 <style>
 /* VOICE: razigrano, toplo, kao spomenar iz osnovne škole
    IDEA: tvrdo ukoričeni leksikon — korice od maline, linirane stranice s crvenom marginom
@@ -59,16 +59,19 @@ input:focus,textarea:focus,select:focus,button:focus-visible{outline:3px solid v
 .lock svg{width:110px;height:110px;margin:0 auto 10px;display:block}
 .lock .row{justify-content:center;margin-top:14px}
 .lock input{max-width:260px;text-align:center;font-size:28px;letter-spacing:2px}
-.entry .who{font:700 clamp(34px,7vw,46px)/1.05 Caveat,cursive;color:var(--hand);margin:0 0 14px}
-.entry dl{margin:0}
-.entry dt{font-weight:700;font-size:14px;color:var(--soft);margin-top:8px}
-.entry dd{margin:0 0 4px;font:500 24px/1.3 Caveat,cursive;color:var(--hand);white-space:pre-wrap;overflow-wrap:anywhere}
+.qpage .qtitle{font:800 clamp(28px,6vw,40px)/1.1 "Baloo 2",sans-serif;color:var(--accent);margin:0 0 18px;text-wrap:balance;text-align:center}
+.qpage ol{list-style:none;margin:0;padding:0}
+.qpage li{display:grid;grid-template-columns:2.4em minmax(0,1fr);align-items:baseline;min-height:48px;border-bottom:1px solid var(--line);padding:6px 0}
+.qpage .n{font:700 18px "Baloo 2",sans-serif;color:var(--soft)}
+.qpage .a{font:500 25px/1.25 Caveat,cursive;white-space:pre-wrap;overflow-wrap:anywhere}
+.qpage .f1{font-family:Kalam,cursive;font-size:20px}.qpage .f2{font-family:"Patrick Hand",cursive;font-size:21px}
+.c0{color:light-dark(#1a3fa0,#9ec1ff)}.c1{color:light-dark(#1f7a4a,#7fe0a8)}.c2{color:light-dark(#7a2fb0,#d6a8ff)}.c3{color:light-dark(#c0392b,#ff9a8a)}.c4{color:light-dark(#0b7285,#7fd8e6)}.c5{color:light-dark(#9c4a00,#ffb870)}
+.qnum{text-align:center;color:var(--soft);font-weight:700;margin-top:18px}
+.jump{display:flex;gap:8px;align-items:center;margin-bottom:22px}.jump select{font:600 16px Nunito,system-ui,sans-serif;color:var(--ink)}
+.ulist{list-style:none;padding:0;margin:0}.ulist li{display:flex;justify-content:space-between;align-items:center;gap:10px;border-bottom:1px solid var(--line);padding:4px 0}
 .pager{display:flex;justify-content:space-between;align-items:center;gap:10px;margin-top:24px}
-.pager span{color:var(--soft);font-weight:700}
+.pager span{color:var(--soft);font-weight:700;white-space:nowrap}.pager .btn{white-space:nowrap;padding:10px 16px}
 .empty{text-align:center;color:var(--soft);padding:30px 0}
-.toc{display:flex;flex-wrap:wrap;gap:8px;margin-bottom:20px}
-.toc button{font:600 14px Nunito;border:2px solid var(--line);background:var(--field);color:var(--ink);border-radius:999px;padding:6px 12px;min-height:40px;cursor:pointer}
-.toc button[aria-current=true]{border-color:var(--accent);color:var(--accent)}
 fieldset{border:2px dashed var(--line);border-radius:12px;padding:16px;margin:0 0 20px}
 legend{font:700 18px "Baloo 2";color:var(--accent);padding:0 6px}
 pre{background:var(--field);border:2px solid var(--line);border-radius:10px;padding:10px;font-size:13px;overflow-x:auto;white-space:pre}
@@ -113,11 +116,10 @@ pre{background:var(--field);border:2px solid var(--line);border-radius:10px;padd
   </section>
 
   <section id="vListaj" hidden>
-   <h2>Stranice leksikona</h2>
-   <p class="sub" id="listSub"></p>
-   <div class="toc" id="toc"></div>
-   <article class="entry" id="entry"></article>
+   <div class="jump"><label for="jumpSel" class="small" style="flex:none">Idi na</label><select id="jumpSel"></select></div>
+   <article class="qpage" id="qpage"></article>
    <div class="pager" id="pager"></div>
+   <p class="small" id="listSub" style="text-align:center"></p>
   </section>
 
   <section id="vPostavke" hidden>
@@ -135,6 +137,10 @@ pre{background:var(--field);border:2px solid var(--line);border-radius:10px;padd
     <p class="small">Format: kolone <b>pitanje;tip;opcije</b> (zarez ili tačka-zarez). Tipovi: <b>kratko</b>, <b>dugo</b>, <b>broj</b>, <b>datum</b>, <b>izbor</b> (opcije odvojene sa |). Pitanje sa * na kraju je obavezno.</p>
     <pre id="csvPrev"></pre>
     <button class="btn ghost" id="copyCsv" type="button">Kopiraj trenutni CSV</button>
+   </fieldset>
+   <fieldset>
+    <legend>Upisani</legend>
+    <ul class="ulist" id="ulist"></ul>
    </fieldset>
    <div class="msg" id="postMsg"></div>
   </section>
@@ -218,26 +224,31 @@ $('form').addEventListener('click',async e=>{if(e.target.id!='delMine')return;
 
 function nameOf(en){const a=en.odgovori||[];return (a.find(x=>/ime/i.test(x.p)&&x.o)||a.find(x=>x.o)||{}).o||'Bez imena'}
 
+function ordered(){return [...entries].sort((a,b)=>(a.prvo||'').localeCompare(b.prvo||'')||a._id.localeCompare(b._id))}
 function renderList(){
-  const list=[...entries].sort((a,b)=>(a.prvo||'').localeCompare(b.prvo||''));
-  $('listSub').textContent=list.length?`${list.length} ${list.length%10==1&&list.length%100!=11?'upis':'upisa'} do sada.`:'';
-  if(!list.length){$('toc').innerHTML='';$('pager').innerHTML='';$('entry').innerHTML='<p class="empty">Još niko nije upisan. Budi prvi/a!</p>';return}
-  idx=Math.max(0,Math.min(idx,list.length-1));const en=list[idx];
-  $('toc').innerHTML=list.map((x,i)=>`<button type="button" data-i="${i}" aria-current="${i==idx}">${esc(nameOf(x))}</button>`).join('');
-  $('entry').innerHTML=`<p class="who">${esc(nameOf(en))}</p><dl>${(en.odgovori||[]).filter(a=>a.o).map(a=>`<dt>${esc(a.p)}</dt><dd>${esc(a.o)}</dd>`).join('')}</dl>`+
-    (isOwner?`<button class="del" type="button" data-del="${esc(en._id)}">Ukloni ovu stranicu</button>`:'');
-  $('pager').innerHTML=`<button class="btn ghost" type="button" data-step="-1" ${idx==0?'disabled':''}>← Nazad</button><span>${idx+1} / ${list.length}</span><button class="btn ghost" type="button" data-step="1" ${idx==list.length-1?'disabled':''}>Dalje →</button>`;
+  const list=ordered(),n=questions.length;
+  if(!n){$('qpage').innerHTML='<p class="empty">Nema pitanja.</p>';return}
+  idx=Math.max(0,Math.min(idx,n-1));const q=questions[idx];
+  $('jumpSel').innerHTML=questions.map((x,i)=>`<option value="${i}" ${i==idx?'selected':''}>${i+1}. ${esc(x.p)}</option>`).join('');
+  const rows=list.map((en,i)=>{const a=(en.odgovori||[]).find(x=>x.p===q.p);return `<li><span class="n">${i+1}.</span><span class="a c${i%6} f${i%3}">${esc(a?.o||'')}</span></li>`}).join('');
+  $('qpage').innerHTML=`<p class="qtitle">${esc(q.p)}</p>`+(list.length?`<ol>${rows}</ol>`:'<p class="empty">Još niko nije upisan. Budi prvi/a!</p>');
+  $('pager').innerHTML=`<button class="btn ghost" type="button" data-step="-1" ${idx==0?'disabled':''}>← Nazad</button><span>${idx+1} / ${n}</span><button class="btn ghost" type="button" data-step="1" ${idx==n-1?'disabled':''}>Dalje →</button>`;
+  $('listSub').textContent=list.length?`${list.length} ${list.length%10==1&&list.length%100!=11?'upis':'upisa'} · svako ima svoj redni broj na svakoj strani`:'';
 }
-$('vListaj').addEventListener('click',async e=>{const t=e.target.closest('button');if(!t)return;
-  if(t.dataset.i){idx=+t.dataset.i;renderList()}
-  else if(t.dataset.step){idx+=+t.dataset.step;renderList()}
-  else if(t.dataset.del){if(t.dataset.sure!='1'){t.dataset.sure='1';t.textContent='Klikni ponovo za potvrdu';return}
-    try{await db.doc('upisi/'+t.dataset.del).delete()}catch(_){t.textContent='Brisanje nije uspjelo'}}});
+$('pager').addEventListener('click',e=>{const t=e.target.closest('button[data-step]');if(!t)return;idx+=+t.dataset.step;renderList();$('page').scrollIntoView({behavior:'smooth',block:'start'})});
+$('jumpSel').addEventListener('change',e=>{idx=+e.target.value;renderList()});
+{let x0=null;$('qpage').addEventListener('touchstart',e=>x0=e.touches[0].clientX,{passive:true});
+ $('qpage').addEventListener('touchend',e=>{if(x0==null)return;const dx=e.changedTouches[0].clientX-x0;x0=null;if(Math.abs(dx)>60){const k=idx+(dx<0?1:-1);if(k>=0&&k<questions.length){idx=k;renderList()}}})}
+function renderUsers(){const list=ordered();
+  $('ulist').innerHTML=list.length?list.map((en,i)=>`<li><span>${i+1}. ${esc(nameOf(en))}</span><button class="del" type="button" data-del="${esc(en._id)}">Ukloni</button></li>`).join(''):'<li class="small">Još niko.</li>'}
+$('ulist').addEventListener('click',async e=>{const t=e.target.closest('button[data-del]');if(!t)return;
+  if(t.dataset.sure!='1'){t.dataset.sure='1';t.textContent='Sigurno?';return}
+  try{await db.doc('upisi/'+t.dataset.del).delete()}catch(_){t.textContent='Nije uspjelo'}});
 
 async function renderPost(){
   $('passInfo').textContent=settings.hash?'Šifra je postavljena. Upiši novu da je promijeniš.':`Još koristiš zadanu šifru „${DEFAULT_PASS}“. Postavi svoju prije nego podijeliš leksikon.`;
   $('csvInfo').textContent=`${questions.length} pitanja. Izvor: ${settings.csv?'tvoj učitani CSV':'zadani pitanja.csv'}.`;
-  $('csvPrev').textContent=csvText;}
+  $('csvPrev').textContent=csvText;renderUsers();}
 function postMsg(t,ok){$('postMsg').className='msg '+(ok?'ok':'err');$('postMsg').textContent=t}
 async function saveSettings(patch){const next={...settings,...patch};for(const k in next)if(next[k]==null)delete next[k];
   await db.doc('config/postavke').set(next)}
@@ -249,7 +260,7 @@ $('csvFile').addEventListener('change',async e=>{const f=e.target.files[0];if(!f
 $('resetCsv').addEventListener('click',async()=>{try{await saveSettings({csv:null});postMsg('Vraćena su zadana pitanja.',true)}catch(_){postMsg('Nije uspjelo.')}});
 $('copyCsv').addEventListener('click',async e=>{try{await navigator.clipboard.writeText(csvText);e.target.textContent='Kopirano!'}catch(_){e.target.textContent='Kopiranje nije dozvoljeno'}});
 
-function applyQuestions(){csvText=settings.csv||defaultCsv;questions=parseCsv(csvText);if(unlocked){renderForm();if(view=='postavke')renderPost()}}
+function applyQuestions(){csvText=settings.csv||defaultCsv;questions=parseCsv(csvText);if(unlocked){renderForm();if(view=='postavke')renderPost();if(view=='listaj')renderList()}}
 
 async function init(){
   defHash=await sha(DEFAULT_PASS);
@@ -265,7 +276,7 @@ async function init(){
     try{if(!unlocked&&(isOwner||sessionStorage.getItem('lx')===(settings.hash||defHash)))unlock()}catch(_){if(isOwner&&!unlocked)unlock()}},()=>{});
   db.collection('upisi').onSnapshot(s=>{entries=s.docs.map(d=>({...d.data(),_id:d.id}));
     myEntry=entries.find(x=>x._id===uid)||null;
-    if(unlocked){if(view=='listaj')renderList();if(view=='popuni'&&!document.activeElement?.closest('#form'))renderForm()}},()=>{});
+    if(unlocked){if(view=='listaj')renderList();if(view=='postavke')renderUsers();if(view=='popuni'&&!document.activeElement?.closest('#form'))renderForm()}},()=>{});
 }
 init();
 }
