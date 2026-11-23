@@ -66,6 +66,12 @@ input:focus,textarea:focus,select:focus,button:focus-visible{outline:3px solid v
 .qpage .a{font:500 25px/1.25 Caveat,cursive;white-space:pre-wrap;overflow-wrap:anywhere}
 .qpage .f1{font-family:Kalam,cursive;font-size:20px}.qpage .f2{font-family:"Patrick Hand",cursive;font-size:21px}
 .c0{color:light-dark(#1a3fa0,#9ec1ff)}.c1{color:light-dark(#1f7a4a,#7fe0a8)}.c2{color:light-dark(#7a2fb0,#d6a8ff)}.c3{color:light-dark(#c0392b,#ff9a8a)}.c4{color:light-dark(#0b7285,#7fd8e6)}.c5{color:light-dark(#9c4a00,#ffb870)}
+.qpage li.mine{border-bottom:2px dashed var(--accent)}
+.ans{display:flex;gap:8px;align-items:center}
+.ans .a{flex:1;width:auto;min-height:44px;border:0;border-radius:6px;background:light-dark(rgba(255,210,63,.18),rgba(255,210,63,.08));padding:4px 8px;line-height:1.25}
+.ans textarea.a{min-height:64px;resize:vertical}
+.ans select.a{font-family:Nunito,sans-serif;font-size:17px}
+.ans .ok{flex:none;font:700 15px "Baloo 2",sans-serif;border:0;border-radius:10px;background:var(--accent);color:#fff;min-height:44px;padding:0 14px;cursor:pointer}
 .qnum{text-align:center;color:var(--soft);font-weight:700;margin-top:18px}
 .jump{display:flex;gap:8px;align-items:center;margin-bottom:22px}.jump select{font:600 16px Nunito,system-ui,sans-serif;color:var(--ink)}
 .ulist{list-style:none;padding:0;margin:0}.ulist li{display:flex;justify-content:space-between;align-items:center;gap:10px;border-bottom:1px solid var(--line);padding:4px 0}
@@ -86,13 +92,11 @@ pre{background:var(--field);border:2px solid var(--line);border-radius:10px;padd
 <div class="wrap">
  <header>
   <h1>Moj leksikon</h1>
-  <p>Upiši se i ostavi trag na jednoj stranici.</p>
-  <p style="font-size:12px;opacity:.7;margin-top:2px">verzija 3 · strana po pitanje</p>
+  <p>Odgovori u poslednjem redu, pa okreni stranu.</p>
  </header>
 
  <nav class="tabs" role="tablist" id="tabs" hidden>
-  <button role="tab" data-v="popuni" aria-selected="true">Upiši se</button>
-  <button role="tab" data-v="listaj" aria-selected="false">Listaj leksikon</button>
+  <button role="tab" data-v="listaj" aria-selected="true">Leksikon</button>
   <button role="tab" data-v="postavke" aria-selected="false" id="tabPost" hidden>Postavke</button>
  </nav>
 
@@ -110,15 +114,10 @@ pre{background:var(--field);border:2px solid var(--line);border-radius:10px;padd
    <div class="msg" id="lockMsg"></div>
   </section>
 
-  <section id="vPopuni" hidden>
-   <h2>Upiši se</h2>
-   <p class="sub" id="formSub">Odgovori na pitanja. Možeš se kasnije vratiti i izmijeniti svoje odgovore.</p>
-   <form id="form"></form>
-  </section>
-
   <section id="vListaj" hidden>
    <div class="jump"><label for="jumpSel" class="small" style="flex:none">Idi na</label><select id="jumpSel"></select></div>
    <article class="qpage" id="qpage"></article>
+   <div class="msg" id="ansMsg" style="text-align:center"></div>
    <div class="pager" id="pager"></div>
    <p class="small" id="listSub" style="text-align:center"></p>
   </section>
@@ -155,7 +154,7 @@ const DEFAULT_PASS='leksikon';
 const $=id=>document.getElementById(id);
 const esc=s=>String(s??'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
 let defHash='',db=null,user=null,uid=null,isOwner=false,canWrite=true;
-let defaultCsv='',csvText='',questions=[],entries=[],settings={},myEntry=null,idx=0,unlocked=false,view='popuni';
+let defaultCsv='',csvText='',questions=[],entries=[],settings={},myEntry=null,idx=0,unlocked=false,view='listaj',saving=false;
 
 async function sha(t){const b=await crypto.subtle.digest('SHA-256',new TextEncoder().encode(t.trim()));return [...new Uint8Array(b)].map(x=>x.toString(16).padStart(2,'0')).join('')}
 
@@ -183,63 +182,68 @@ function parseCsv(text){
 
 function setView(v){view=v;
   for(const b of document.querySelectorAll('.tabs button'))b.setAttribute('aria-selected',b.dataset.v==v);
-  $('vPopuni').hidden=v!='popuni';$('vListaj').hidden=v!='listaj';$('vPostavke').hidden=v!='postavke';
+  $('vListaj').hidden=v!='listaj';$('vPostavke').hidden=v!='postavke';
   if(v=='listaj')renderList();if(v=='postavke')renderPost();}
 $('tabs').addEventListener('click',e=>{const b=e.target.closest('button');if(b)setView(b.dataset.v)});
 
-function unlock(){unlocked=true;$('vLock').hidden=true;$('tabs').hidden=false;renderForm();setView(view)}
+function unlock(){unlocked=true;$('vLock').hidden=true;$('tabs').hidden=!isOwner;setView(view)}
 
 $('lockForm').addEventListener('submit',async e=>{e.preventDefault();
   const h=await sha($('pass').value);const want=settings.hash||defHash;
   if(h===want){try{sessionStorage.setItem('lx',h)}catch(_){};unlock()}
   else{$('lockMsg').className='msg err';$('lockMsg').textContent='Pogrešna šifra, pokušaj ponovo.'}});
 
-function renderForm(){
-  if(!questions.length){$('form').innerHTML='<p class="empty">Pitanja se učitavaju…</p>';return}
-  const prev={};(myEntry?.odgovori||[]).forEach(a=>prev[a.p]=a.o);
-  $('form').innerHTML=questions.map((q,i)=>{const id='q'+i,v=prev[q.p]??'',lab=`${esc(q.p)}${q.req?' <span class="req">*</span>':''}`;
-    let inp;
-    if(q.tip=='dugo')inp=`<textarea id="${id}" ${q.req?'required':''}>${esc(v)}</textarea>`;
-    else if(q.tip=='izbor')return `<div class="q" role="group" aria-labelledby="${id}l"><label id="${id}l">${lab}</label><div class="chips">${q.opcije.map(o=>`<label><input type="radio" name="${id}" value="${esc(o)}" ${o==v?'checked':''} ${q.req?'required':''}>${esc(o)}</label>`).join('')}</div></div>`;
-    else inp=`<input id="${id}" type="${q.tip=='broj'?'number':q.tip=='datum'?'date':'text'}" value="${esc(v)}" ${q.req?'required':''}>`;
-    return `<div class="q"><label for="${id}">${lab}</label>${inp}</div>`}).join('')+
-   `<div class="row"><button class="btn" type="submit" id="saveBtn">${myEntry?'Spremi izmjene':'Upiši se u leksikon'}</button>${myEntry?'<button class="del" type="button" id="delMine">Obriši moj upis</button>':''}</div><div class="msg" id="formMsg"></div>`;
-  if(!db||!uid){$('formSub').textContent='Za upis moraš biti prijavljen/a na Claude i imati pristup ovoj stranici.';$('saveBtn').disabled=true}
-  else if(!canWrite){$('formSub').textContent='Možeš čitati leksikon, ali vlasnik ti još nije dao dozvolu za upis.';$('saveBtn').disabled=true}
-}
-
-$('form').addEventListener('submit',async e=>{e.preventDefault();const m=$('formMsg'),btn=$('saveBtn');
-  const odgovori=questions.map((q,i)=>{let o;if(q.tip=='izbor')o=(document.querySelector(`input[name=q${i}]:checked`)||{}).value||'';else o=$('q'+i).value.trim();return {p:q.p,o}});
-  btn.disabled=true;m.className='msg';m.textContent='Spremam…';
-  try{await db.doc('upisi/'+uid).set({uid,odgovori,vrijeme:new Date().toISOString(),prvo:myEntry?.prvo||new Date().toISOString()});
-    m.className='msg ok';m.textContent='Spremljeno! Hvala što si se upisao/la.';}
-  catch(err){m.className='msg err';
-    if(err?.code=='invalid_argument'){canWrite=false;m.textContent='Nemaš dozvolu za upis. Zamoli vlasnika da te doda kao saradnika (Contributor).'}
-    else if(err?.code=='quota_exceeded')m.textContent='Leksikon je pun, ne može primiti nove upise.';
-    else m.textContent='Nije uspjelo spremanje, pokušaj ponovo.'}
-  btn.disabled=!canWrite});
-
-$('form').addEventListener('click',async e=>{if(e.target.id!='delMine')return;
-  if(e.target.dataset.sure!='1'){e.target.dataset.sure='1';e.target.textContent='Klikni ponovo za potvrdu brisanja';return}
-  try{await db.doc('upisi/'+uid).delete();$('formMsg').className='msg ok';$('formMsg').textContent='Tvoj upis je obrisan.'}catch(_){$('formMsg').className='msg err';$('formMsg').textContent='Brisanje nije uspjelo.'}});
-
 function nameOf(en){const a=en.odgovori||[];return (a.find(x=>/ime/i.test(x.p)&&x.o)||a.find(x=>x.o)||{}).o||'Bez imena'}
 
 function ordered(){return [...entries].sort((a,b)=>(a.prvo||'').localeCompare(b.prvo||'')||a._id.localeCompare(b._id))}
-function renderList(){
+const writable=()=>!!(db&&uid&&canWrite);
+function myField(q,v,cls){
+  if(q.tip=='dugo')return `<textarea id="ansIn" class="${cls}" rows="2" aria-label="Tvoj odgovor">${esc(v)}</textarea>`;
+  if(q.tip=='izbor')return `<select id="ansIn" class="${cls}" aria-label="Tvoj odgovor"><option value="">izaberi…</option>${q.opcije.map(o=>`<option ${o==v?'selected':''}>${esc(o)}</option>`).join('')}</select>`;
+  return `<input id="ansIn" class="${cls}" type="${q.tip=='broj'?'number':q.tip=='datum'?'date':'text'}" value="${esc(v)}" aria-label="Tvoj odgovor" placeholder="tvoj odgovor…" autocomplete="off">`;
+}
+function renderList(focus){
   const list=ordered(),n=questions.length;
   if(!n){$('qpage').innerHTML='<p class="empty">Nema pitanja.</p>';return}
   idx=Math.max(0,Math.min(idx,n-1));const q=questions[idx];
   $('jumpSel').innerHTML=questions.map((x,i)=>`<option value="${i}" ${i==idx?'selected':''}>${i+1}. ${esc(x.p)}</option>`).join('');
-  const rows=list.map((en,i)=>{const a=(en.odgovori||[]).find(x=>x.p===q.p);return `<li><span class="n">${i+1}.</span><span class="a c${i%6} f${i%3}">${esc(a?.o||'')}</span></li>`}).join('');
-  $('qpage').innerHTML=`<p class="qtitle">${esc(q.p)}</p>`+(list.length?`<ol>${rows}</ol>`:'<p class="empty">Još niko nije upisan. Budi prvi/a!</p>');
+  const mine=list.findIndex(e=>e._id===uid),w=writable();
+  const val=en=>((en?.odgovori||[]).find(x=>x.p===q.p)||{}).o||'';
+  const row=(i,en)=>{const cls=`a c${i%6} f${i%3}`;
+    if(w&&i===(mine<0?list.length:mine))return `<li class="mine"><span class="n">${i+1}.</span><form class="ans" id="ansForm">${myField(q,val(en),cls)}<button class="ok" type="submit">Upiši</button></form></li>`;
+    return `<li><span class="n">${i+1}.</span><span class="${cls}">${esc(val(en))}</span></li>`};
+  let rows=list.map((en,i)=>row(i,en)).join('');
+  if(w&&mine<0)rows+=row(list.length,null);
+  $('qpage').innerHTML=`<p class="qtitle">${esc(q.p)}</p>`+(rows?`<ol>${rows}</ol>`:'<p class="empty">Još niko nije upisan.</p>')+
+    (w?'':`<p class="small" style="text-align:center">${db&&uid?'Možeš čitati leksikon, ali vlasnik ti još nije dao dozvolu za upis.':'Za upis moraš biti prijavljen/a na Claude.'}</p>`);
   $('pager').innerHTML=`<button class="btn ghost" type="button" data-step="-1" ${idx==0?'disabled':''}>← Nazad</button><span>${idx+1} / ${n}</span><button class="btn ghost" type="button" data-step="1" ${idx==n-1?'disabled':''}>Dalje →</button>`;
   $('listSub').textContent=list.length?`${list.length} ${list.length%10==1&&list.length%100!=11?'upis':'upisa'} · svako ima svoj redni broj na svakoj strani`:'';
+  if(focus&&$('ansIn'))$('ansIn').focus({preventScroll:true});
 }
-$('pager').addEventListener('click',e=>{const t=e.target.closest('button[data-step]');if(!t)return;idx+=+t.dataset.step;renderList();$('page').scrollIntoView({behavior:'smooth',block:'start'})});
-$('jumpSel').addEventListener('change',e=>{idx=+e.target.value;renderList()});
+async function saveCurrent(){
+  const f=$('ansIn');if(!f||!writable())return true;
+  const q=questions[idx],o=f.value.trim(),old=((myEntry?.odgovori||[]).find(x=>x.p===q.p)||{}).o||'';
+  if(o===old)return true;
+  if(!myEntry&&!o)return true;
+  const odgovori=(myEntry?.odgovori||[]).filter(x=>x.p!==q.p).map(x=>({...x}));odgovori.push({p:q.p,o});
+  const now=new Date().toISOString(),m=$('ansMsg');saving=true;m.className='msg';m.textContent='Upisujem…';
+  try{await db.doc('upisi/'+uid).set({uid,odgovori,vrijeme:now,prvo:myEntry?.prvo||now});
+    myEntry={...(myEntry||{_id:uid,uid}),odgovori,prvo:myEntry?.prvo||now};
+    if(!entries.some(e=>e._id===uid))entries.push(myEntry);else entries=entries.map(e=>e._id===uid?myEntry:e);
+    m.className='msg ok';m.textContent='Upisano.';saving=false;return true}
+  catch(err){saving=false;m.className='msg err';
+    if(err?.code=='invalid_argument'){canWrite=false;m.textContent='Nemaš dozvolu za upis. Zamoli vlasnika da te doda kao saradnika (Contributor).'}
+    else if(err?.code=='quota_exceeded')m.textContent='Leksikon je pun, ne može primiti nove upise.';
+    else m.textContent='Nije uspjelo, pokušaj ponovo.';return false}
+}
+async function go(k,focus){if(saving)return;if(!(await saveCurrent()))return;if(k<0||k>=questions.length){renderList();return}
+  idx=k;renderList(focus);if(!focus)$('page').scrollIntoView({behavior:'smooth',block:'start'})}
+$('qpage').addEventListener('submit',async e=>{e.preventDefault();const last=idx>=questions.length-1;await go(last?idx:idx+1,!last);
+  if(last&&!$('ansMsg').classList.contains('err'))$('ansMsg').textContent='To je bilo poslednje pitanje. Hvala!'});
+$('pager').addEventListener('click',e=>{const t=e.target.closest('button[data-step]');if(t)go(idx+ +t.dataset.step)});
+$('jumpSel').addEventListener('change',e=>go(+e.target.value));
 {let x0=null;$('qpage').addEventListener('touchstart',e=>x0=e.touches[0].clientX,{passive:true});
- $('qpage').addEventListener('touchend',e=>{if(x0==null)return;const dx=e.changedTouches[0].clientX-x0;x0=null;if(Math.abs(dx)>60){const k=idx+(dx<0?1:-1);if(k>=0&&k<questions.length){idx=k;renderList()}}})}
+ $('qpage').addEventListener('touchend',e=>{if(x0==null)return;const dx=e.changedTouches[0].clientX-x0;x0=null;if(Math.abs(dx)>60){const k=idx+(dx<0?1:-1);if(k>=0&&k<questions.length)go(k)}})}
 function renderUsers(){const list=ordered();
   $('ulist').innerHTML=list.length?list.map((en,i)=>`<li><span>${i+1}. ${esc(nameOf(en))}</span><button class="del" type="button" data-del="${esc(en._id)}">Ukloni</button></li>`).join(''):'<li class="small">Još niko.</li>'}
 $('ulist').addEventListener('click',async e=>{const t=e.target.closest('button[data-del]');if(!t)return;
@@ -261,7 +265,7 @@ $('csvFile').addEventListener('change',async e=>{const f=e.target.files[0];if(!f
 $('resetCsv').addEventListener('click',async()=>{try{await saveSettings({csv:null});postMsg('Vraćena su zadana pitanja.',true)}catch(_){postMsg('Nije uspjelo.')}});
 $('copyCsv').addEventListener('click',async e=>{try{await navigator.clipboard.writeText(csvText);e.target.textContent='Kopirano!'}catch(_){e.target.textContent='Kopiranje nije dozvoljeno'}});
 
-function applyQuestions(){csvText=settings.csv||defaultCsv;questions=parseCsv(csvText);if(unlocked){renderForm();if(view=='postavke')renderPost();if(view=='listaj')renderList()}}
+function applyQuestions(){csvText=settings.csv||defaultCsv;questions=parseCsv(csvText);if(unlocked){if(view=='postavke')renderPost();if(view=='listaj')renderList()}}
 
 async function init(){
   defHash=await sha(DEFAULT_PASS);
@@ -277,7 +281,7 @@ async function init(){
     try{if(!unlocked&&(isOwner||sessionStorage.getItem('lx')===(settings.hash||defHash)))unlock()}catch(_){if(isOwner&&!unlocked)unlock()}},()=>{});
   db.collection('upisi').onSnapshot(s=>{entries=s.docs.map(d=>({...d.data(),_id:d.id}));
     myEntry=entries.find(x=>x._id===uid)||null;
-    if(unlocked){if(view=='listaj')renderList();if(view=='postavke')renderUsers();if(view=='popuni'&&!document.activeElement?.closest('#form'))renderForm()}},()=>{});
+    if(unlocked){if(view=='listaj'&&!saving&&!document.activeElement?.closest('#ansForm'))renderList();if(view=='postavke')renderUsers()}},()=>{});
 }
 init();
 }
