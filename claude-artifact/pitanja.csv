@@ -1,0 +1,20 @@
+pitanje;tip;opcije
+Ime i prezime;kratko;
+Nadimak;kratko;
+Datum rođenja;datum;
+Horoskopski znak;izbor;Ovan|Bik|Blizanci|Rak|Lav|Djevica|Vaga|Škorpija|Strijelac|Jarac|Vodolija|Ribe
+Odakle si?;kratko;
+Visina (cm);broj;
+Boja očiju;kratko;
+Omiljena boja;kratko;
+Omiljena hrana;kratko;
+Omiljeno piće;kratko;
+Omiljena pjesma;kratko;
+Omiljeni film ili serija;kratko;
+Hobi;kratko;
+Ljeto ili zima?;izbor;Ljeto|Zima
+Mačke ili psi?;izbor;Mačke|Psi|Oboje|Ni jedno
+Čega se najviše bojiš?;kratko;
+Šta želiš biti kad porasteš?;kratko;
+Najljepša uspomena sa mnom;dugo;
+Tvoja poruka za mene;dugo;
