@@ -114,7 +114,7 @@ pre{background:var(--field);border:2px solid var(--line);border-radius:10px;padd
   </section>
 
   <section id="vListaj" hidden>
-   <div class="jump"><label for="jumpSel" class="small" style="flex:none">Idi na</label><select id="jumpSel"></select></div>
+   <div class="jump" id="jump" hidden><label for="jumpSel" class="small" style="flex:none">Idi na</label><select id="jumpSel"></select></div>
    <article class="qpage" id="qpage"></article>
    <div class="msg" id="ansMsg" style="text-align:center"></div>
    <div class="pager" id="pager"></div>
@@ -206,7 +206,8 @@ function renderList(focus){
   const list=ordered(),n=questions.length;
   if(!n){$('qpage').innerHTML='<p class="empty">Nema pitanja.</p>';return}
   idx=Math.max(0,Math.min(idx,n));
-  $('jumpSel').innerHTML=questions.map((x,i)=>`<option value="${i}" ${i==idx?'selected':''}>${i+1}. ${esc(x.p)}</option>`).join('')+(idx==n?'<option selected disabled>Kraj</option>':'');
+  $('jump').hidden=!(localDone||!!myEntry?.zavrseno);
+  if((localDone||!!myEntry?.zavrseno))$('jumpSel').innerHTML=questions.map((x,i)=>`<option value="${i}" ${i==idx?'selected':''}>${i+1}. ${esc(x.p)}</option>`).join('')+(idx==n?'<option selected disabled>Kraj</option>':'');
   if(idx===n){$('qpage').innerHTML='<div class="thanks"><img src="macka.png" alt="Mačka pored table na kojoj piše Thank you!"></div>';
     $('pager').innerHTML='<button class="btn ghost" type="button" data-step="-1">← Nazad</button><span></span><span></span>';$('ansMsg').textContent='';return}
   const q=questions[idx];
@@ -242,8 +243,8 @@ async function go(k,focus){if(saving)return;if(!(await saveCurrent()))return;if(
   if(k===questions.length&&!localDone){localDone=true;if(myEntry&&!myEntry.zavrseno&&writable()){try{await db.doc('upisi/'+uid).update({zavrseno:true});myEntry={...myEntry,zavrseno:true}}catch(_){}}}
   idx=k;renderList(focus);if(!focus)$('page').scrollIntoView({behavior:'smooth',block:'start'})}
 $('qpage').addEventListener('submit',async e=>{e.preventDefault();await go(idx+1,idx+1<questions.length)});
-$('pager').addEventListener('click',e=>{const t=e.target.closest('button[data-step]');if(t)go(idx+ +t.dataset.step)});
 $('jumpSel').addEventListener('change',e=>go(+e.target.value));
+$('pager').addEventListener('click',e=>{const t=e.target.closest('button[data-step]');if(t)go(idx+ +t.dataset.step)});
 {let x0=null;$('qpage').addEventListener('touchstart',e=>x0=e.touches[0].clientX,{passive:true});
  $('qpage').addEventListener('touchend',e=>{if(x0==null)return;const dx=e.changedTouches[0].clientX-x0;x0=null;if(Math.abs(dx)>60){const k=idx+(dx<0?1:-1);if(k>=0&&k<=questions.length)go(k)}})}
 function renderUsers(){const list=ordered();

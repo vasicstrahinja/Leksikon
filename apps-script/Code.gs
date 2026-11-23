@@ -4,6 +4,7 @@
 const SIFRA_DEFAULT = 'leksikon';
 const MAX_ODGOVOR = 2000;
 const MAX_PITANJA = 150;
+const FOLDER = 'Leksikon slike';
 
 function sheet_(name) {
   const ss = SpreadsheetApp.getActive();
@@ -41,6 +42,7 @@ function handle_(r) {
     if (String(r.pass || '').trim() !== sifra_()) return out_({ ok: false, err: 'sifra' });
     if (r.action === 'list') return out_(list_(String(r.id || '')));
     if (r.action === 'save') return out_(save_(r));
+    if (r.action === 'upload') return out_(upload_(r));
     return out_({ ok: false, err: 'akcija' });
   } catch (err) {
     return out_({ ok: false, err: String(err) });
@@ -48,7 +50,13 @@ function handle_(r) {
 }
 
 function list_(id) {
-  const v = sheet_('Upisi').getDataRange().getDisplayValues();
+  const range = sheet_('Upisi').getDataRange();
+  const v = range.getDisplayValues();
+  const f = range.getFormulas();
+  v.forEach((row, i) => row.forEach((_, c) => {
+    const m = String(f[i][c] || '').match(/^=IMAGE\("([^"]+)"/i);
+    if (m) row[c] = m[1];
+  }));
   const head = v[0] || [];
   const rows = v.slice(1).filter(r => r[0]);
   const entries = rows.map(r => {
@@ -60,11 +68,41 @@ function list_(id) {
 }
 
 function save_(r) {
+  let o = String(r.o == null ? '' : r.o).slice(0, MAX_ODGOVOR);
+  if (/^[=+\-@]/.test(o)) o = "'" + o; // da tabela ne pretvori odgovor u formulu
+  return writeCell_(r, !o, cell => { cell.setNumberFormat('@'); cell.setValue(o); });
+}
+
+// Slika ide u Google Drive (folder "Leksikon slike"), a u tabelu se upisuje =IMAGE(...)
+function upload_(r) {
+  const m = String(r.data || '').match(/^data:(image\/(jpeg|png|webp));base64,([A-Za-z0-9+/=]+)$/);
+  if (!m || m[3].length > 4000000) return { ok: false, err: 'slika' };
+  const id = String(r.id || '');
+  if (!/^[a-f0-9]{32}$/.test(id)) return { ok: false, err: 'podaci' };
+  const ext = m[2] === 'jpeg' ? 'jpg' : m[2];
+  const blob = Utilities.newBlob(Utilities.base64Decode(m[3]), m[1], 'leksikon-' + id.slice(0, 6) + '-' + Date.now() + '.' + ext);
+  const file = folder_().createFile(blob);
+  file.setSharing(DriveApp.Access.ANYONE_WITH_LINK, DriveApp.Permission.VIEW);
+  const url = 'https://lh3.googleusercontent.com/d/' + file.getId();
+  const res = writeCell_(r, false, cell => {
+    const old = String(cell.getFormula() || '').match(/googleusercontent\.com\/d\/([\w-]+)/);
+    if (old) { try { DriveApp.getFileById(old[1]).setTrashed(true); } catch (_) {} }
+    cell.setFormula('=IMAGE("' + url + '")');
+  });
+  if (!res.ok) { file.setTrashed(true); return res; }
+  res.url = url;
+  return res;
+}
+
+function folder_() {
+  const it = DriveApp.getFoldersByName(FOLDER);
+  return it.hasNext() ? it.next() : DriveApp.createFolder(FOLDER);
+}
+
+function writeCell_(r, empty, write) {
   const id = String(r.id || '');
   const p = String(r.p || '').trim().slice(0, 200);
-  let o = String(r.o == null ? '' : r.o).slice(0, MAX_ODGOVOR);
   if (!/^[a-f0-9]{32}$/.test(id) || !p) return { ok: false, err: 'podaci' };
-  if (/^[=+\-@]/.test(o)) o = "'" + o; // da tabela ne pretvori odgovor u formulu
 
   const lock = LockService.getScriptLock();
   lock.waitLock(10000);
@@ -82,15 +120,13 @@ function save_(r) {
     let row = ids.indexOf(id) + 2;
     const now = new Date();
     if (row < 2) {
-      if (!o) return { ok: true };
+      if (empty) return { ok: true };
       u.appendRow([id, now, now]);
       row = u.getLastRow();
     } else {
       u.getRange(row, 3).setValue(now);
     }
-    const cell = u.getRange(row, col);
-    cell.setNumberFormat('@');
-    cell.setValue(o);
+    write(u.getRange(row, col));
     return { ok: true };
   } finally {
     lock.releaseLock();

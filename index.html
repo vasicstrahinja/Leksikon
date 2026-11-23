@@ -72,6 +72,12 @@ input:focus,textarea:focus,select:focus,button:focus-visible{outline:3px solid v
 .ans textarea.a{min-height:64px;resize:vertical}
 .ans select.a{font-family:Nunito,sans-serif;font-size:17px}
 .ans .ok{flex:none;font:700 15px "Baloo 2",sans-serif;border:0;border-radius:10px;background:var(--accent);color:#fff;min-height:44px;padding:0 14px;cursor:pointer}
+.qpage li:has(.pic),.qpage li:has(.picbox){align-items:start}.qpage li:has(.pic) .n,.qpage li:has(.picbox) .n{padding-top:8px}
+.picbox{flex:1;display:flex;flex-direction:column;align-items:flex-start;gap:8px}
+.pic{display:block;max-width:100%;max-height:240px;border-radius:10px;box-shadow:0 4px 12px rgba(0,0,0,.18);margin:4px 0}
+.filebtn{display:inline-flex;align-items:center;min-height:44px;padding:0 16px;border-radius:10px;border:2px dashed var(--accent);color:var(--accent);font:700 15px "Baloo 2",sans-serif;cursor:pointer}
+.filebtn input{position:absolute;width:1px;height:1px;opacity:0}
+.filebtn:focus-within{outline:3px solid var(--tape);outline-offset:2px}
 .thanks{text-align:center}.thanks img{display:block;width:100%;max-width:560px;height:auto;margin:6px auto 0;border-radius:14px;box-shadow:0 10px 24px rgba(0,0,0,.25)}
 .qnum{text-align:center;color:var(--soft);font-weight:700;margin-top:18px}
 .jump{display:flex;gap:8px;align-items:center;margin-bottom:22px}.jump select{font:600 16px Nunito,system-ui,sans-serif;color:var(--ink)}
@@ -109,7 +115,7 @@ pre{background:var(--field);border:2px solid var(--line);border-radius:10px;padd
   </section>
 
   <section id="vListaj" hidden>
-   <div class="jump"><label for="jumpSel" class="small" style="flex:none">Idi na</label><select id="jumpSel"></select></div>
+   <div class="jump" id="jump" hidden><label for="jumpSel" class="small" style="flex:none">Idi na</label><select id="jumpSel"></select></div>
    <article class="qpage" id="qpage"></article>
    <div class="msg" id="ansMsg" style="text-align:center"></div>
    <div class="pager" id="pager"></div>
@@ -144,7 +150,7 @@ function parseCsv(text){
   const out=[];
   rows.forEach((r,i)=>{let p=(r[0]||'').trim().replace(/\*$/,'').trim();if(!p)return;
     if(i==0&&/^(pitanje|question)$/i.test(p))return;
-    let tip=(r[1]||'kratko').trim().toLowerCase();if(!['kratko','dugo','broj','datum','izbor'].includes(tip))tip='kratko';
+    let tip=(r[1]||'kratko').trim().toLowerCase();if(!['kratko','dugo','broj','datum','izbor','slika'].includes(tip))tip='kratko';
     const opcije=(r[2]||'').split('|').map(s=>s.trim()).filter(Boolean);
     if(tip=='izbor'&&!opcije.length)tip='kratko';
     out.push({p,tip,opcije})});
@@ -169,7 +175,9 @@ async function tryUnlock(p){
 }
 $('lockForm').addEventListener('submit',e=>{e.preventDefault();tryUnlock($('pass').value)});
 
+const picUrl=v=>/^https:\/\/lh3\.googleusercontent\.com\/d\/[\w-]+$/.test(v)?v:'';
 function myField(q,v,cls){
+  if(q.tip=='slika'){const u=picUrl(v);return `<div class="picbox">${u?`<img class="pic" src="${esc(u)}" alt="Tvoja slika">`:''}<label class="filebtn">${u?'Promeni sliku':'Izaberi sliku'}<input type="file" id="ansFile" accept="image/*"></label></div>`}
   if(q.tip=='dugo')return `<textarea id="ansIn" class="${cls}" rows="2" aria-label="Tvoj odgovor">${esc(v)}</textarea>`;
   if(q.tip=='izbor')return `<select id="ansIn" class="${cls}" aria-label="Tvoj odgovor"><option value="">izaberi…</option>${q.opcije.map(o=>`<option ${o==v?'selected':''}>${esc(o)}</option>`).join('')}</select>`;
   return `<input id="ansIn" class="${cls}" type="${q.tip=='broj'?'number':q.tip=='datum'?'date':'text'}" value="${esc(v)}" aria-label="Tvoj odgovor" placeholder="tvoj odgovor…" autocomplete="off">`;
@@ -179,13 +187,15 @@ function renderList(focus){
   const n=questions.length;
   if(!n){$('qpage').innerHTML='<p class="empty">Nema pitanja.</p>';return}
   idx=Math.max(0,Math.min(idx,n));
-  $('jumpSel').innerHTML=questions.map((x,i)=>`<option value="${i}" ${i==idx?'selected':''}>${i+1}. ${esc(x.p)}</option>`).join('')+(idx==n?'<option selected disabled>Kraj</option>':'');
+  $('jump').hidden=!done;
+  if(done)$('jumpSel').innerHTML=questions.map((x,i)=>`<option value="${i}" ${i==idx?'selected':''}>${i+1}. ${esc(x.p)}</option>`).join('')+(idx==n?'<option selected disabled>Kraj</option>':'');
   if(idx===n){$('qpage').innerHTML='<div class="thanks"><img src="macka.png" alt="Mačka pored table na kojoj piše Thank you!"></div>';
     $('pager').innerHTML='<button class="btn ghost" type="button" data-step="-1">← Nazad</button><span></span><span></span>';$('ansMsg').textContent='';return}
   const q=questions[idx];
   const me=done?-1:(mine<0?entries.length:mine);
   const row=(i,en)=>{const cls=`a c${i%6} f${i%3}`;
     if(i===me)return `<li class="mine"><span class="n">${i+1}.</span><form class="ans" id="ansForm">${myField(q,val(en,q),cls)}<button class="ok" type="submit">Upiši</button></form></li>`;
+    if(q.tip=='slika'){const u=picUrl(val(en,q));return `<li><span class="n">${i+1}.</span><span>${u?`<img class="pic" src="${esc(u)}" alt="Slika broj ${i+1}" loading="lazy">`:''}</span></li>`}
     return `<li><span class="n">${i+1}.</span><span class="${cls}">${esc(val(en,q))}</span></li>`};
   let rows=entries.map((en,i)=>row(i,en)).join('');
   if(mine<0&&!done)rows+=row(entries.length,null);
@@ -214,10 +224,29 @@ async function go(k,focus){
   idx=k;renderList(focus);if(!focus)$('page').scrollIntoView({behavior:'smooth',block:'start'});
 }
 $('qpage').addEventListener('submit',async e=>{e.preventDefault();await go(idx+1,idx+1<questions.length)});
-$('pager').addEventListener('click',e=>{const t=e.target.closest('button[data-step]');if(t)go(idx+ +t.dataset.step)});
 $('jumpSel').addEventListener('change',e=>go(+e.target.value));
+$('pager').addEventListener('click',e=>{const t=e.target.closest('button[data-step]');if(t)go(idx+ +t.dataset.step)});
 {let x0=null;$('qpage').addEventListener('touchstart',e=>x0=e.touches[0].clientX,{passive:true});
  $('qpage').addEventListener('touchend',e=>{if(x0==null)return;const dx=e.changedTouches[0].clientX-x0;x0=null;if(Math.abs(dx)>60){const k=idx+(dx<0?1:-1);if(k>=0&&k<=questions.length)go(k)}})}
+
+async function shrink(file){
+  const img=await createImageBitmap(file);
+  const k=Math.min(1,1200/Math.max(img.width,img.height));
+  const c=document.createElement('canvas');c.width=Math.round(img.width*k);c.height=Math.round(img.height*k);
+  c.getContext('2d').drawImage(img,0,0,c.width,c.height);
+  return c.toDataURL('image/jpeg',.82);
+}
+$('qpage').addEventListener('change',async e=>{
+  if(e.target.id!='ansFile'||!e.target.files[0]||saving)return;
+  const q=questions[idx],m=$('ansMsg');saving=true;m.className='msg';m.textContent='Šaljem sliku…';
+  try{const data=await shrink(e.target.files[0]);
+    const r=await call({action:'upload',id:myId,p:q.p,data});
+    if(!r.ok)throw r;
+    if(mine<0){entries.push({});mine=entries.length-1}
+    entries[mine]={...entries[mine],[q.p]:r.url};
+    m.className='msg ok';m.textContent='Slika je upisana.';saving=false;renderList()}
+  catch(err){saving=false;m.className='msg err';m.textContent=err&&err.err=='sifra'?'Šifra je promenjena. Osveži stranicu i unesi novu.':'Slanje slike nije uspelo. Probaj drugu sliku ili pokušaj ponovo.'}
+});
 
 setInterval(async()=>{
   if(!unlocked||saving||document.hidden||document.activeElement?.closest('#ansForm'))return;
