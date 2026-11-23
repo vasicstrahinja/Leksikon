@@ -169,9 +169,9 @@ async function load(){
 
 function lockMsg(t){$('lockMsg').className='msg err';$('lockMsg').textContent=t}
 async function tryUnlock(p){
-  pass=p.trim();
+  pass=p.trim();$('lockMsg').className='msg';$('lockMsg').textContent=pass?'Otvaram leksikon…':'';
   try{await load()}catch(e){if(e&&e.err=='sifra'){lockMsg(p?'Pogrešna šifra, pokušaj ponovo.':'');return false}lockMsg('Ne mogu da dođem do leksikona. Proveri internet i pokušaj ponovo.');return false}
-  store.set('lx_pass',pass);unlocked=true;$('vLock').hidden=true;$('vListaj').hidden=false;renderList();return true;
+  $('lockMsg').textContent='';store.set('lx_pass',pass);unlocked=true;$('vLock').hidden=true;$('vListaj').hidden=false;renderList();return true;
 }
 $('lockForm').addEventListener('submit',e=>{e.preventDefault();tryUnlock($('pass').value)});
 
@@ -204,21 +204,32 @@ function renderList(focus){
   if(focus&&$('ansIn'))$('ansIn').focus({preventScroll:true});
 }
 
-async function saveCurrent(){
+// Odgovori se čuvaju u pozadini: strana se okreće odmah, a zahtevi idu redom.
+let queue=[],flushing=false;
+function saveCurrent(){
   const f=$('ansIn');if(!f)return true;
   const q=questions[idx],o=f.value.trim(),old=val(mine<0?null:entries[mine],q);
   if(o===old)return true;
-  const m=$('ansMsg');saving=true;m.className='msg';m.textContent='Upisujem…';
-  try{const r=await call({action:'save',id:myId,p:q.p,o});
-    if(!r.ok)throw r;
-    if(mine<0){entries.push({});mine=entries.length-1}
-    entries[mine]={...entries[mine],[q.p]:o};
-    m.className='msg ok';m.textContent='Upisano.';return true}
-  catch(e){m.className='msg err';m.textContent=e&&e.err=='sifra'?'Šifra je promenjena. Osveži stranicu i unesi novu.':'Nije uspelo, pokušaj ponovo.';return false}
-  finally{saving=false}
+  if(mine<0){if(!o)return true;entries.push({});mine=entries.length-1}
+  entries[mine]={...entries[mine],[q.p]:o};
+  queue=queue.filter(x=>x.p!==q.p);queue.push({p:q.p,o});flush();return true;
 }
+async function flush(){
+  if(flushing||!queue.length)return;flushing=true;
+  let err=null;
+  while(queue.length){const items=queue.slice();
+    try{const r=await call({action:'saveMany',id:myId,items});if(!r.ok)throw r;queue=queue.filter(x=>!items.includes(x))}
+    catch(e){err=e;break}}
+  flushing=false;
+  const m=$('ansMsg');
+  if(err){m.className='msg err';m.innerHTML=(err&&err.err=='sifra'?'Šifra je promenjena. Osveži stranicu i unesi novu.':'Neki odgovori nisu sačuvani.')+' <button class="del" type="button" id="retry">Pokušaj ponovo</button>'}
+  else if(m.querySelector('#retry')){m.className='msg';m.textContent=''}
+}
+$('ansMsg').addEventListener('click',e=>{if(e.target.id=='retry'){$('ansMsg').textContent='Čuvam…';flush()}});
+window.addEventListener('beforeunload',e=>{if(queue.length||flushing){e.preventDefault();e.returnValue=''}});
+document.addEventListener('visibilitychange',()=>{if(document.hidden)saveCurrent()});
 async function go(k,focus){
-  if(saving)return;if(!(await saveCurrent()))return;
+  if(saving)return;saveCurrent();
   if(k<0||k>questions.length){renderList();return}
   if(k===questions.length&&!done){done=true;store.set('lx_done','1')}
   idx=k;renderList(focus);if(!focus)$('page').scrollIntoView({behavior:'smooth',block:'start'});
@@ -249,8 +260,8 @@ $('qpage').addEventListener('change',async e=>{
 });
 
 setInterval(async()=>{
-  if(!unlocked||saving||document.hidden||document.activeElement?.closest('#ansForm'))return;
-  try{await load();if(!saving&&!document.activeElement?.closest('#ansForm'))renderList()}catch(_){}
+  if(!unlocked||saving||flushing||queue.length||document.hidden||document.activeElement?.closest('#ansForm'))return;
+  try{await load();if(!saving&&!flushing&&!queue.length&&!document.activeElement?.closest('#ansForm'))renderList()}catch(_){}
 },20000);
 
 (async()=>{
