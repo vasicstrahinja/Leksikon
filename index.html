@@ -218,7 +218,9 @@ async function flush(){
   if(flushing||!queue.length)return;flushing=true;
   let err=null;
   while(queue.length){const items=queue.slice();
-    try{const r=await call({action:'saveMany',id:myId,items});if(!r.ok)throw r;queue=queue.filter(x=>!items.includes(x))}
+    try{let r=await call({action:'saveMany',id:myId,items});
+      if(!r.ok&&r.err=='akcija'){for(const it of items){r=await call({action:'save',id:myId,p:it.p,o:it.o});if(!r.ok)break}}
+      if(!r.ok)throw r;queue=queue.filter(x=>!items.includes(x))}
     catch(e){err=e;break}}
   flushing=false;
   const m=$('ansMsg');
