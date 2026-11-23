@@ -1,7 +1,6 @@
 pitanje;tip;opcije
 Ime i prezime;kratko;
 Nadimak;kratko;
-Tvoja slika;slika;
 Datum rođenja;datum;
 Omiljena boja;kratko;
 Lepinja ili somun za rostilj;kratko;
@@ -17,4 +16,4 @@ Najbolje putovanje u zivotu?;dugo;
 Šta želiš biti kad porasteš?;kratko;
 Sta je to sto si skontao/-la o svetu i zeleo/-la bi da zaboravis?;dugo;
 Najljepša uspomena sa mnom;dugo;
-Tvoj meme za kraj;dugo;
+Tvoj meme za kraj;slika;
